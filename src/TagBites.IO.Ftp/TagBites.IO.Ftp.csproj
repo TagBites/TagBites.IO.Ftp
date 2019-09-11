@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Package info -->
+  <PropertyGroup>
+    <PackageId>TagBites.IO.Ftp</PackageId>
+    <Product>TagBites.IO.Ftp</Product>
+    <Title>TagBites.IO.Ftp</Title>
+
+    <Description></Description>
+    <PackageTags>file system;io;files;file;c#;.net;ftp</PackageTags>
+
+    <PackageProjectUrl>https://www.tagbites.com/io</PackageProjectUrl>
+    <PackageIconUrl>https://www.tagbites.com/io/icon.png</PackageIconUrl>
+
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/TagBites/TagBites.IO.Ftp.git</RepositoryUrl>
+  </PropertyGroup>
+
+  <!-- Targets -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+
+  <!-- Build -->
+  <PropertyGroup>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <RootNamespace>TagBites.IO.Ftp</RootNamespace>
+    <LangVersion>8</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentFTP" Version="24.0.0" />
+    <PackageReference Include="TagBites.IO" Version="1.0.0-beta2" />
+  </ItemGroup>
+
+</Project>
