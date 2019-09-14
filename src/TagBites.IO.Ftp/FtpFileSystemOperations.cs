@@ -11,14 +11,11 @@ namespace TagBites.IO.Ftp
     internal class FtpFileSystemOperations : IFileSystemOperations, IFileSystemPermissionsOperations, IDisposable
     {
         private bool HashCodeNotSupported { get; set; }
-        //private HashSet<string> IgnoredFiles { get; }
 
         private FluentFTP.FtpClient Client { get; }
 
-        public FtpFileSystemOperations(string address, string username, string password/*, string[] ignoredFiles*/, Encoding encoding = null, FtpDataConnectionType connectionType = FtpDataConnectionType.AutoPassive)
+        public FtpFileSystemOperations(string address, string username, string password, Encoding encoding = null, FtpDataConnectionType connectionType = FtpDataConnectionType.AutoPassive)
         {
-            //IgnoredFiles = (ignoredFiles ?? new string[0]).ToHashSet();
-
             if (address == null)
                 throw new ArgumentNullException(nameof(address));
 

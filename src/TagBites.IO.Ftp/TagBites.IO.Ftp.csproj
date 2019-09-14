@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <!-- Package info -->
   <PropertyGroup>
@@ -7,7 +7,7 @@
     <Title>TagBites.IO.Ftp</Title>
 
     <Description></Description>
-    <PackageTags>file system;io;files;file;c#;.net;ftp</PackageTags>
+    <PackageTags>file;files;system;filesystem;sync;.net;C#;ftp</PackageTags>
 
     <PackageProjectUrl>https://www.tagbites.com/io</PackageProjectUrl>
     <PackageIconUrl>https://www.tagbites.com/io/icon.png</PackageIconUrl>
@@ -36,7 +36,7 @@
 
   <ItemGroup>
     <PackageReference Include="FluentFTP" Version="24.0.0" />
-    <PackageReference Include="TagBites.IO" Version="1.0.0-beta2" />
+    <PackageReference Include="TagBites.IO" Version="1.0.0" />
   </ItemGroup>
 
 </Project>

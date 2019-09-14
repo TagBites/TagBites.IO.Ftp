@@ -19,7 +19,7 @@ namespace TagBites.IO.Ftp
         /// <returns>A Ftp file system contains the procedures that are used to perform file and directory operations.</returns>
         public static FileSystem Create(string address, string username, string password, Encoding encoding = null, FtpDataConnectionType connectionType = FtpDataConnectionType.AutoPassive)
         {
-            return  new FileSystem(new FtpFileSystemOperations(address, username, password, encoding, connectionType));
+            return new FileSystem(new FtpFileSystemOperations(address, username, password, encoding, connectionType));
         }
     }
 }
