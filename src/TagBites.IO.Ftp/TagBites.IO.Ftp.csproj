@@ -36,7 +36,7 @@
 
   <ItemGroup>
     <PackageReference Include="FluentFTP" Version="24.0.0" />
-    <PackageReference Include="TagBites.IO" Version="1.0.0" />
+    <PackageReference Include="TagBites.IO" Version="1.0.4" />
   </ItemGroup>
 
 </Project>

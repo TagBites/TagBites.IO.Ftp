@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System;
+using System.Text;
 using FluentFTP;
 
 namespace TagBites.IO.Ftp
@@ -20,6 +21,19 @@ namespace TagBites.IO.Ftp
         public static FileSystem Create(string address, string username, string password, Encoding encoding = null, FtpDataConnectionType connectionType = FtpDataConnectionType.AutoPassive)
         {
             return new FileSystem(new FtpFileSystemOperations(address, username, password, encoding, connectionType));
+        }
+
+        /// <summary>
+        /// Creates a Ftp file system.
+        /// </summary>
+        /// <param name="client">FTP connection.</param>
+        /// <returns>A Ftp file system contains the procedures that are used to perform file and directory operations.</returns>
+        public static FileSystem Create(FtpClient client)
+        {
+            if (client == null)
+                throw new ArgumentNullException(nameof(client));
+
+            return new FileSystem(new FtpFileSystemOperations(client));
         }
     }
 }

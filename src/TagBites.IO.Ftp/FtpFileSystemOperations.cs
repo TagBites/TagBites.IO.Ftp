@@ -8,13 +8,17 @@ using TagBites.IO.Operations;
 
 namespace TagBites.IO.Ftp
 {
-    internal class FtpFileSystemOperations : IFileSystemOperations, IFileSystemPermissionsOperations, IDisposable
+    internal class FtpFileSystemOperations : IFileSystemOperations, IFileSystemPermissionsOperations, IFileSystemOperationsMetadataSupport, IDisposable
     {
         private bool HashCodeNotSupported { get; set; }
 
         private FluentFTP.FtpClient Client { get; }
 
-        public FtpFileSystemOperations(string address, string username, string password, Encoding encoding = null, FtpDataConnectionType connectionType = FtpDataConnectionType.AutoPassive)
+        public bool SupportsIsHiddenMetadata => false;
+        public bool SupportsIsReadOnlyMetadata => false;
+        public bool SupportsLastWriteTimeMetadata => true;
+
+        public FtpFileSystemOperations(string address, string username, string password, Encoding encoding = null, FtpDataConnectionType connectionType = FtpDataConnectionType.AutoActive)
         {
             if (address == null)
                 throw new ArgumentNullException(nameof(address));
@@ -33,12 +37,16 @@ namespace TagBites.IO.Ftp
 
             Client = new FtpClient(host, port, new NetworkCredential(username, password))
             {
-                Encoding = encoding ?? Encoding.UTF8,
+                Encoding = encoding ?? Encoding.ASCII,
                 DataConnectionType = connectionType,
                 //EncryptionMode = FtpEncryptionMode.Explicit,
                 RetryAttempts = 3
             };
             Client.ValidateCertificate += (control, args) => args.Accept = true;
+        }
+        public FtpFileSystemOperations(FtpClient client)
+        {
+            Client = client ?? throw new ArgumentNullException(nameof(client));
         }
 
 
@@ -94,7 +102,12 @@ namespace TagBites.IO.Ftp
         public void DeleteDirectory(DirectoryLink directory, bool recursive)
         {
             lock (Client)
+            {
+                if (!recursive && Client.GetListing(directory.FullName, FtpListOption.SizeModify).Length > 0)
+                    throw new IOException($"The directory is not empty: {directory.FullName}");
+
                 Client.DeleteDirectory(directory.FullName);
+            }
         }
         public IList<IFileSystemStructureLinkInfo> GetLinks(DirectoryLink directory, FileSystem.ListingOptions options)
         {
@@ -150,14 +163,19 @@ namespace TagBites.IO.Ftp
         {
             var item = new LinkInfo(this, fullPath);
             item.IsDirectory = line.Type == FtpFileSystemObjectType.Directory;
-            item.CreationTime = line.Created == DateTime.MinValue ? line.Modified : line.Created;
-            item.LastWriteTime = line.Modified == DateTime.MinValue ? line.Created : line.Modified;
+            item.CreationTime = line.Created == DateTime.MinValue ? CheckDateTime(line.Modified) : line.Created;
+            item.LastWriteTime = line.Modified == DateTime.MinValue ? CheckDateTime(line.Created) : line.Modified;
             item.Length = line.Size;
-            item.CanRead = (line.OwnerPermissions & FtpPermission.Read) != 0;
-            item.CanWrite = (line.OwnerPermissions & FtpPermission.Write) != 0;
+            item.CanRead = line.OwnerPermissions == 0 || (line.OwnerPermissions & FtpPermission.Read) != 0;
+            item.CanWrite = line.OwnerPermissions == 0 || (line.OwnerPermissions & FtpPermission.Write) != 0;
 
             return item;
         }
+        private DateTime? CheckDateTime(DateTime dateTime)
+        {
+            return dateTime == DateTime.MinValue ? (DateTime?)null : dateTime;
+        }
+
 
         public void Dispose() => Client.Dispose();
 
