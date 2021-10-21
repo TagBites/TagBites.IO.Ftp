@@ -8,7 +8,7 @@ using TagBites.IO.Operations;
 
 namespace TagBites.IO.Ftp
 {
-    internal class FtpFileSystemOperations : IFileSystemOperations, IFileSystemPermissionsOperations, IFileSystemOperationsMetadataSupport, IDisposable
+    internal class FtpFileSystemOperations : IFileSystemWriteOperations, IFileSystemPermissionsOperations, IFileSystemMetadataSupport, IDisposable
     {
         private bool HashCodeNotSupported { get; set; }
 
@@ -65,17 +65,33 @@ namespace TagBites.IO.Ftp
                     return new MemoryStream(ms.ToArray());
                 }
         }
-        public IFileLinkInfo WriteFile(FileLink file, Stream stream)
+        public IFileLinkInfo WriteFile(FileLink file, Stream stream, bool overwrite)
         {
             lock (Client)
-                Client.Upload(stream, file.FullName, FtpExists.Overwrite, true);
+            {
+                if (overwrite)
+                    Client.Upload(stream, file.FullName, FtpExists.Overwrite, true);
+                else
+                {
+                    if (!Client.Upload(stream, file.FullName, FtpExists.Skip, true))
+                        throw new IOException("Unable to create a new file. File already exists or an unknown error occur during transfer.");
+                }
+            }
 
             return GetFileInfo(file.FullName);
         }
-        public IFileLinkInfo MoveFile(FileLink source, FileLink destination)
+        public IFileLinkInfo MoveFile(FileLink source, FileLink destination, bool overwrite)
         {
             lock (Client)
-                Client.MoveFile(source.FullName, destination.FullName);
+            {
+                if (overwrite)
+                    Client.MoveFile(source.FullName, destination.FullName);
+                else
+                {
+                    if (!Client.MoveFile(source.FullName, destination.FullName, FtpExists.Skip))
+                        throw new IOException("Unable to move a new file. File already exists or an unknown error occur during transfer.");
+                }
+            }
 
             return GetFileInfo(destination.FullName);
         }
