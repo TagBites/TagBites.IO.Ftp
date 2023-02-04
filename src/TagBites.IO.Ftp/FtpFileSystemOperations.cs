@@ -3,16 +3,23 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Text;
+using System.Threading;
 using FluentFTP;
 using TagBites.IO.Operations;
+using TagBites.IO.Streams;
 
 namespace TagBites.IO.Ftp
 {
-    internal class FtpFileSystemOperations : IFileSystemWriteOperations, IFileSystemPermissionsOperations, IFileSystemMetadataSupport, IDisposable
+    internal class FtpFileSystemOperations :
+        IFileSystemWriteOperations,
+        IFileSystemDirectReadWriteOperations,
+        IFileSystemPermissionsOperations,
+        IFileSystemMetadataSupport,
+        IDisposable
     {
         private bool HashCodeNotSupported { get; set; }
 
-        private FluentFTP.FtpClient Client { get; }
+        private FtpClient Client { get; }
 
         public bool SupportsIsHiddenMetadata => false;
         public bool SupportsIsReadOnlyMetadata => false;
@@ -53,17 +60,15 @@ namespace TagBites.IO.Ftp
         public IFileSystemStructureLinkInfo GetLinkInfo(string fullName) => GetInfo(fullName);
         public string CorrectPath(string path) => path;
 
-        public Stream ReadFile(FileLink file)
+        public void ReadFile(FileLink file, Stream stream)
         {
             lock (Client)
-                using (var ms = new MemoryStream())
-                {
-                    using (var rs = Client.OpenRead(file.FullName))
-                        rs.CopyTo(ms);
+            {
+                using (var rs = Client.OpenRead(file.FullName))
+                    rs.CopyTo(stream);
 
-                    Client.GetReply();
-                    return new MemoryStream(ms.ToArray());
-                }
+                Client.GetReply();
+            }
         }
         public IFileLinkInfo WriteFile(FileLink file, Stream stream, bool overwrite)
         {
@@ -80,6 +85,37 @@ namespace TagBites.IO.Ftp
 
             return GetFileInfo(file.FullName);
         }
+
+        public FileAccess GetSupportedDirectAccess(FileLink file) => FileAccess.Read;
+        public Stream OpenFileStream(FileLink file, FileAccess access, bool overwrite)
+        {
+            if (access != FileAccess.Read)
+                throw new NotSupportedException();
+
+            Monitor.Enter(Client);
+            try
+            {
+                var stream = Client.OpenRead(file.FullName);
+
+                return new NotifyOnCloseStream(stream, () =>
+                {
+                    try
+                    {
+                        Client.GetReply();
+                    }
+                    finally
+                    {
+                        Monitor.Exit(Client);
+                    }
+                });
+            }
+            catch
+            {
+                Monitor.Exit(Client);
+                throw;
+            }
+        }
+
         public IFileLinkInfo MoveFile(FileLink source, FileLink destination, bool overwrite)
         {
             lock (Client)
@@ -160,12 +196,12 @@ namespace TagBites.IO.Ftp
         private LinkInfo GetFileInfo(string fullName)
         {
             var info = GetInfo(fullName);
-            return info != null && !info.IsDirectory ? info : null;
+            return info is { IsDirectory: false } ? info : null;
         }
         private LinkInfo GetDirectoryInfo(string fullName)
         {
             var info = GetInfo(fullName);
-            return info != null && info.IsDirectory ? info : null;
+            return info is { IsDirectory: true } ? info : null;
         }
         private LinkInfo GetInfo(string fullName)
         {
@@ -177,13 +213,14 @@ namespace TagBites.IO.Ftp
         }
         private LinkInfo GetInfo(string fullPath, FtpListItem line)
         {
-            var item = new LinkInfo(this, fullPath);
-            item.IsDirectory = line.Type == FtpFileSystemObjectType.Directory;
-            item.CreationTime = line.Created == DateTime.MinValue ? CheckDateTime(line.Modified) : line.Created;
-            item.LastWriteTime = line.Modified == DateTime.MinValue ? CheckDateTime(line.Created) : line.Modified;
-            item.Length = line.Size;
-            item.CanRead = line.OwnerPermissions == 0 || (line.OwnerPermissions & FtpPermission.Read) != 0;
-            item.CanWrite = line.OwnerPermissions == 0 || (line.OwnerPermissions & FtpPermission.Write) != 0;
+            var item = new LinkInfo(this, fullPath, line.Type == FtpFileSystemObjectType.Directory)
+            {
+                CreationTime = line.Created == DateTime.MinValue ? CheckDateTime(line.Modified) : line.Created,
+                LastWriteTime = line.Modified == DateTime.MinValue ? CheckDateTime(line.Created) : line.Modified,
+                Length = line.Size,
+                CanRead = line.OwnerPermissions == 0 || (line.OwnerPermissions & FtpPermission.Read) != 0,
+                CanWrite = line.OwnerPermissions == 0 || (line.OwnerPermissions & FtpPermission.Write) != 0
+            };
 
             return item;
         }
@@ -191,7 +228,6 @@ namespace TagBites.IO.Ftp
         {
             return dateTime == DateTime.MinValue ? (DateTime?)null : dateTime;
         }
-
 
         public void Dispose() => Client.Dispose();
 
@@ -203,7 +239,7 @@ namespace TagBites.IO.Ftp
 
             public string FullName { get; }
             public bool Exists => true;
-            public bool IsDirectory { get; set; }
+            public bool? IsDirectory { get; }
 
             public DateTime? CreationTime { get; set; }
             public DateTime? LastWriteTime { get; set; }
@@ -225,10 +261,11 @@ namespace TagBites.IO.Ftp
             public bool CanRead { get; set; }
             public bool CanWrite { get; set; }
 
-            public LinkInfo(FtpFileSystemOperations owner, string fullName)
+            public LinkInfo(FtpFileSystemOperations owner, string fullName, bool isDirectory)
             {
                 Owner = owner;
                 FullName = fullName;
+                IsDirectory = isDirectory;
             }
 
 
