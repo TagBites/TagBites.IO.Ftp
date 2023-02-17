@@ -31,7 +31,6 @@
 
   <PropertyGroup>
     <RootNamespace>TagBites.IO.Ftp</RootNamespace>
-    <LangVersion>8</LangVersion>
   </PropertyGroup>
 
   <!-- References -->
