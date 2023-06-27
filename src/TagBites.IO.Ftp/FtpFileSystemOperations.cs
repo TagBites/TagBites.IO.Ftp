@@ -1,10 +1,8 @@
-﻿using System;
+﻿using FluentFTP;
+using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Net;
-using System.Text;
 using System.Threading;
-using FluentFTP;
 using TagBites.IO.Operations;
 using TagBites.IO.Streams;
 
@@ -17,43 +15,33 @@ namespace TagBites.IO.Ftp
         IFileSystemMetadataSupport,
         IDisposable
     {
+        private readonly FtpConnectionConfig _connectionConfig;
         private bool HashCodeNotSupported { get; set; }
 
-        private FtpClient Client { get; }
+        private FtpClient _client;
+        private FtpClient Client
+        {
+            get
+            {
+                if (_client == null)
+                {
+                    _client = new FtpClient(_connectionConfig.Host, _connectionConfig.Port, _connectionConfig.Credential);
+                    if (_connectionConfig.Encoding != null)
+                        _client.Encoding = _connectionConfig.Encoding;
+                    _client.ValidateCertificate += (control, args) => args.Accept = true;
+                }
+
+                return _client;
+            }
+        }
 
         public bool SupportsIsHiddenMetadata => false;
         public bool SupportsIsReadOnlyMetadata => false;
         public bool SupportsLastWriteTimeMetadata => true;
 
-        public FtpFileSystemOperations(string address, string username, string password, Encoding encoding = null, FtpDataConnectionType connectionType = FtpDataConnectionType.AutoActive)
+        public FtpFileSystemOperations(FtpConnectionConfig connectionConfig)
         {
-            if (address == null)
-                throw new ArgumentNullException(nameof(address));
-
-            address = address.Replace("\\", "/");
-            if (!address.StartsWith("ftp://", StringComparison.CurrentCultureIgnoreCase))
-                address = "ftp://" + address;
-
-            var url = new Uri(address);
-            var host = url.Host;
-            var rootDirectory = url.AbsolutePath;
-            var port = url.Port > 0 ? url.Port : 21;
-
-            if (!string.IsNullOrEmpty(rootDirectory) && rootDirectory != "/")
-                throw new ArgumentNullException(nameof(address));
-
-            Client = new FtpClient(host, port, new NetworkCredential(username, password))
-            {
-                Encoding = encoding ?? Encoding.ASCII,
-                DataConnectionType = connectionType,
-                //EncryptionMode = FtpEncryptionMode.Explicit,
-                RetryAttempts = 3
-            };
-            Client.ValidateCertificate += (control, args) => args.Accept = true;
-        }
-        public FtpFileSystemOperations(FtpClient client)
-        {
-            Client = client ?? throw new ArgumentNullException(nameof(client));
+            _connectionConfig = connectionConfig ?? throw new ArgumentNullException(nameof(connectionConfig));
         }
 
 
