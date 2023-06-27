@@ -1,37 +1,58 @@
 ﻿using FluentFTP;
+using FluentFTP.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Threading;
+using System.Threading.Tasks;
 using TagBites.IO.Operations;
 using TagBites.IO.Streams;
+using TagBites.Utils;
 
 namespace TagBites.IO.Ftp
 {
     internal class FtpFileSystemOperations :
         IFileSystemWriteOperations,
-        IFileSystemDirectReadWriteOperations,
+        IFileSystemAsyncWriteOperations,
         IFileSystemPermissionsOperations,
         IFileSystemMetadataSupport,
         IDisposable
     {
         private readonly FtpConnectionConfig _connectionConfig;
-        private bool HashCodeNotSupported { get; set; }
+        private readonly AsyncLock _locker = new();
 
         private FtpClient _client;
+        private AsyncFtpClient _asyncClient;
+
+        private bool HashCodeNotSupported { get; set; }
+
         private FtpClient Client
         {
             get
             {
                 if (_client == null)
                 {
-                    _client = new FtpClient(_connectionConfig.Host, _connectionConfig.Port, _connectionConfig.Credential);
+                    _client = new FtpClient(_connectionConfig.Host, _connectionConfig.Credential, _connectionConfig.Port, _connectionConfig);
                     if (_connectionConfig.Encoding != null)
                         _client.Encoding = _connectionConfig.Encoding;
                     _client.ValidateCertificate += (control, args) => args.Accept = true;
                 }
 
                 return _client;
+            }
+        }
+        private AsyncFtpClient AsyncClient
+        {
+            get
+            {
+                if (_asyncClient == null)
+                {
+                    _asyncClient = new AsyncFtpClient(_connectionConfig.Host, _connectionConfig.Credential, _connectionConfig.Port, _connectionConfig);
+                    if (_connectionConfig.Encoding != null)
+                        _client.Encoding = _connectionConfig.Encoding;
+                    _asyncClient.ValidateCertificate += (control, args) => args.Accept = true;
+                }
+
+                return _asyncClient;
             }
         }
 
@@ -46,32 +67,59 @@ namespace TagBites.IO.Ftp
 
 
         public IFileSystemStructureLinkInfo GetLinkInfo(string fullName) => GetInfo(fullName);
+        public async Task<IFileSystemStructureLinkInfo> GetLinkInfoAsync(string fullName) => await GetInfoAsync(fullName).ConfigureAwait(false);
+
         public string CorrectPath(string path) => path;
 
         public void ReadFile(FileLink file, Stream stream)
         {
-            lock (Client)
+            using (_locker.Lock())
             {
-                using (var rs = Client.OpenRead(file.FullName))
+                using (var rs = PrepareClient().OpenRead(file.FullName))
                     rs.CopyTo(stream);
 
-                Client.GetReply();
+                PrepareClient().GetReply();
+            }
+        }
+        public async Task ReadFileAsync(FileLink file, Stream stream)
+        {
+            using (await _locker.LockAsync().ConfigureAwait(false))
+            {
+                using var rs = await (await PrepareClientAsync().ConfigureAwait(false)).OpenRead(file.FullName).ConfigureAwait(false);
+                await rs.CopyToAsync(stream).ConfigureAwait(false);
+
+                await (await PrepareClientAsync().ConfigureAwait(false)).GetReply(default); // TODO BJ
             }
         }
         public IFileLinkInfo WriteFile(FileLink file, Stream stream, bool overwrite)
         {
-            lock (Client)
+            using (_locker.Lock())
             {
                 if (overwrite)
-                    Client.Upload(stream, file.FullName, FtpExists.Overwrite, true);
+                    PrepareClient().UploadStream(stream, file.FullName, FtpRemoteExists.Overwrite, true);
                 else
                 {
-                    if (!Client.Upload(stream, file.FullName, FtpExists.Skip, true))
+                    if (PrepareClient().UploadStream(stream, file.FullName, FtpRemoteExists.Skip, true)! != FtpStatus.Success)
                         throw new IOException("Unable to create a new file. File already exists or an unknown error occur during transfer.");
                 }
             }
 
             return GetFileInfo(file.FullName);
+        }
+        public async Task<IFileLinkInfo> WriteFileAsync(FileLink file, Stream stream, bool overwrite)
+        {
+            using (await _locker.LockAsync().ConfigureAwait(false))
+            {
+                if (overwrite)
+                    await (await PrepareClientAsync().ConfigureAwait(false)).UploadStream(stream, file.FullName, FtpRemoteExists.Overwrite, true).ConfigureAwait(false);
+                else
+                {
+                    if (await (await PrepareClientAsync().ConfigureAwait(false)).UploadStream(stream, file.FullName, FtpRemoteExists.Skip, true).ConfigureAwait(false) != FtpStatus.Success)
+                        throw new IOException("Unable to create a new file. File already exists or an unknown error occur during transfer.");
+                }
+            }
+
+            return await GetFileInfoAsync(file.FullName).ConfigureAwait(false);
         }
 
         public FileAccess GetSupportedDirectAccess(FileLink file) => FileAccess.Read;
@@ -80,84 +128,178 @@ namespace TagBites.IO.Ftp
             if (access != FileAccess.Read)
                 throw new NotSupportedException();
 
-            Monitor.Enter(Client);
-            try
+            using (_locker.Lock())
             {
-                var stream = Client.OpenRead(file.FullName);
+                var stream = PrepareClient().OpenRead(file.FullName);
 
                 return new NotifyOnCloseStream(stream, () =>
                 {
                     try
                     {
-                        Client.GetReply();
+                        PrepareClient().GetReply();
                     }
                     finally
                     {
-                        Monitor.Exit(Client);
+                        //_semaphore.Release();
                     }
                 });
             }
-            catch
+        }
+        public async Task<Stream> OpenFileStreamAsync(FileLink file, FileAccess access, bool overwrite)
+        {
+            if (access != FileAccess.Read)
+                throw new NotSupportedException();
+
+            using (await _locker.LockAsync().ConfigureAwait(false))
             {
-                Monitor.Exit(Client);
-                throw;
+                var stream = await (await PrepareClientAsync().ConfigureAwait(false)).OpenRead(file.FullName).ConfigureAwait(false);
+
+                return new NotifyOnCloseStream(stream, () =>
+                {
+                    try
+                    {
+                        //(await PrepareClientAsync().ConfigureAwait(false)).GetReply();
+                    }
+                    finally
+                    {
+                        //_semaphoreSlim.Release();
+                    }
+                });
             }
         }
 
         public IFileLinkInfo MoveFile(FileLink source, FileLink destination, bool overwrite)
         {
-            lock (Client)
+            using (_locker.Lock())
             {
                 if (overwrite)
-                    Client.MoveFile(source.FullName, destination.FullName);
+                    PrepareClient().MoveFile(source.FullName, destination.FullName);
                 else
                 {
-                    if (!Client.MoveFile(source.FullName, destination.FullName, FtpExists.Skip))
+                    if (!PrepareClient().MoveFile(source.FullName, destination.FullName, FtpRemoteExists.Skip))
                         throw new IOException("Unable to move a new file. File already exists or an unknown error occur during transfer.");
                 }
             }
 
             return GetFileInfo(destination.FullName);
         }
+        public async Task<IFileLinkInfo> MoveFileAsync(FileLink source, FileLink destination, bool overwrite)
+        {
+            using (await _locker.LockAsync().ConfigureAwait(false))
+            {
+                if (overwrite)
+                    await (await PrepareClientAsync().ConfigureAwait(false)).MoveFile(source.FullName, destination.FullName).ConfigureAwait(false);
+                else
+                {
+                    if (!await (await PrepareClientAsync().ConfigureAwait(false)).MoveFile(source.FullName, destination.FullName, FtpRemoteExists.Skip).ConfigureAwait(false))
+                        throw new IOException("Unable to move a new file. File already exists or an unknown error occur during transfer.");
+                }
+            }
+
+            return await GetFileInfoAsync(destination.FullName);
+        }
+
         public void DeleteFile(FileLink file)
         {
-            lock (Client)
-                Client.DeleteFile(file.FullName);
+            using (_locker.Lock())
+            {
+                PrepareClient().DeleteFile(file.FullName);
+            }
+        }
+        public async Task DeleteFileAsync(FileLink file)
+        {
+            using (await _locker.LockAsync().ConfigureAwait(false))
+            {
+                await (await PrepareClientAsync().ConfigureAwait(false)).DeleteFile(file.FullName).ConfigureAwait(false);
+            }
         }
 
         public IFileSystemStructureLinkInfo CreateDirectory(DirectoryLink directory)
         {
-            lock (Client)
-                Client.CreateDirectory(directory.FullName);
+            using (_locker.Lock())
+            {
+                PrepareClient().CreateDirectory(directory.FullName);
+            }
 
             return GetDirectoryInfo(directory.FullName);
         }
+        public async Task<IFileSystemStructureLinkInfo> CreateDirectoryAsync(DirectoryLink directory)
+        {
+            using (await _locker.LockAsync().ConfigureAwait(false))
+            {
+                await (await PrepareClientAsync().ConfigureAwait(false)).CreateDirectory(directory.FullName).ConfigureAwait(false);
+            }
+
+            return await GetDirectoryInfoAsync(directory.FullName).ConfigureAwait(false);
+        }
+
         public IFileSystemStructureLinkInfo MoveDirectory(DirectoryLink source, DirectoryLink destination)
         {
-            lock (Client)
-                Client.MoveDirectory(source.FullName, destination.FullName);
+            using (_locker.Lock())
+            {
+                PrepareClient().MoveDirectory(source.FullName, destination.FullName);
+            }
 
             return GetDirectoryInfo(destination.FullName);
         }
+        public async Task<IFileSystemStructureLinkInfo> MoveDirectoryAsync(DirectoryLink source, DirectoryLink destination)
+        {
+            using (await _locker.LockAsync().ConfigureAwait(false))
+            {
+                await (await PrepareClientAsync().ConfigureAwait(false)).MoveDirectory(source.FullName, destination.FullName).ConfigureAwait(false);
+            }
+
+            return await GetDirectoryInfoAsync(destination.FullName).ConfigureAwait(false);
+        }
+
         public void DeleteDirectory(DirectoryLink directory, bool recursive)
         {
-            lock (Client)
+            using (_locker.Lock())
             {
-                if (!recursive && Client.GetListing(directory.FullName, FtpListOption.SizeModify).Length > 0)
+                if (!recursive && PrepareClient().GetListing(directory.FullName, FtpListOption.SizeModify).Length > 0)
                     throw new IOException($"The directory is not empty: {directory.FullName}");
 
-                Client.DeleteDirectory(directory.FullName);
+                PrepareClient().DeleteDirectory(directory.FullName);
             }
         }
+        public async Task DeleteDirectoryAsync(DirectoryLink directory, bool recursive)
+        {
+            using (await _locker.LockAsync().ConfigureAwait(false))
+            {
+                if (!recursive && (await (await PrepareClientAsync().ConfigureAwait(false)).GetListing(directory.FullName, FtpListOption.SizeModify).ConfigureAwait(false)).Length > 0)
+                    throw new IOException($"The directory is not empty: {directory.FullName}");
+
+                await (await PrepareClientAsync().ConfigureAwait(false)).DeleteDirectory(directory.FullName).ConfigureAwait(false);
+            }
+        }
+
         public IList<IFileSystemStructureLinkInfo> GetLinks(DirectoryLink directory, FileSystem.ListingOptions options)
         {
             var items = new List<IFileSystemStructureLinkInfo>();
 
-            lock (Client)
+            using (_locker.Lock())
             {
-                foreach (var line in Client.GetListing(directory.FullName, FtpListOption.SizeModify))
+                foreach (var line in PrepareClient().GetListing(directory.FullName, FtpListOption.SizeModify))
                 {
-                    if (line.Type == FtpFileSystemObjectType.Link)// || IgnoredFiles.Contains(line.Name))
+                    if (line.Type == FtpObjectType.Link)// || IgnoredFiles.Contains(line.Name))
+                        continue;
+
+                    var item = GetInfo(PathHelper.Combine(directory.FullName, line.Name), line);
+                    items.Add(item);
+                }
+            }
+
+            return items;
+        }
+        public async Task<IList<IFileSystemStructureLinkInfo>> GetLinksAsync(DirectoryLink directory, FileSystem.ListingOptions options)
+        {
+            var items = new List<IFileSystemStructureLinkInfo>();
+
+            using (await _locker.LockAsync().ConfigureAwait(false))
+            {
+                foreach (var line in await (await PrepareClientAsync().ConfigureAwait(false)).GetListing(directory.FullName, FtpListOption.SizeModify).ConfigureAwait(false))
+                {
+                    if (line.Type == FtpObjectType.Link)// || IgnoredFiles.Contains(line.Name))
                         continue;
 
                     var item = GetInfo(PathHelper.Combine(directory.FullName, line.Name), line);
@@ -170,12 +312,22 @@ namespace TagBites.IO.Ftp
 
         public IFileSystemStructureLinkInfo UpdateMetadata(FileSystemStructureLink link, IFileSystemLinkMetadata metadata)
         {
-            lock (Client)
+            using (_locker.Lock())
             {
                 if (metadata.LastWriteTime.HasValue)
-                    Client.SetModifiedTime(link.FullName, metadata.LastWriteTime.Value);
+                    PrepareClient().SetModifiedTime(link.FullName, metadata.LastWriteTime.Value);
             }
+
             return GetInfo(link.FullName);
+        }
+        public async Task<IFileSystemStructureLinkInfo> UpdateMetadataAsync(FileSystemStructureLink link, IFileSystemLinkMetadata metadata)
+        {
+            using (await _locker.LockAsync().ConfigureAwait(false))
+            {
+                if (metadata.LastWriteTime.HasValue)
+                    await (await PrepareClientAsync().ConfigureAwait(false)).SetModifiedTime(link.FullName, metadata.LastWriteTime.Value).ConfigureAwait(false);
+            }
+            return await GetInfoAsync(link.FullName).ConfigureAwait(false);
         }
 
         public bool HasReadAccess(FileSystemStructureLink link) => (link.Info as LinkInfo)?.CanRead != false;
@@ -186,22 +338,57 @@ namespace TagBites.IO.Ftp
             var info = GetInfo(fullName);
             return info is { IsDirectory: false } ? info : null;
         }
+        private async Task<LinkInfo> GetFileInfoAsync(string fullName)
+        {
+            var info = await GetInfoAsync(fullName).ConfigureAwait(false);
+            return info is { IsDirectory: false } ? info : null;
+        }
         private LinkInfo GetDirectoryInfo(string fullName)
         {
             var info = GetInfo(fullName);
             return info is { IsDirectory: true } ? info : null;
         }
+        private async Task<LinkInfo> GetDirectoryInfoAsync(string fullName)
+        {
+            var info = await GetInfoAsync(fullName).ConfigureAwait(false);
+            return info is { IsDirectory: true } ? info : null;
+        }
         private LinkInfo GetInfo(string fullName)
         {
-            lock (Client)
+            using (_locker.Lock())
             {
-                var item = Client.GetObjectInfo(fullName, true);
-                return item != null ? GetInfo(fullName, item) : null;
+                if (!PrepareClient().IsConnected)
+                    PrepareClient().AutoConnect();
+
+                try
+                {
+                    var item = PrepareClient().GetObjectInfo(fullName, true);
+                    return item != null ? GetInfo(fullName, item) : null;
+                }
+                catch (Exception e)
+                {
+                    return null;
+                }
+            }
+        }
+        private async Task<LinkInfo> GetInfoAsync(string fullName)
+        {
+            using (await _locker.LockAsync().ConfigureAwait(false))
+            {
+                try
+                {
+                    var item = await (await PrepareClientAsync().ConfigureAwait(false)).GetObjectInfo(fullName, true).ConfigureAwait(false);
+                    return item != null ? GetInfo(fullName, item) : null;
+                }
+                catch (Exception e)
+                {
+                    return null;
+                }
             }
         }
         private LinkInfo GetInfo(string fullPath, FtpListItem line)
         {
-            var item = new LinkInfo(this, fullPath, line.Type == FtpFileSystemObjectType.Directory)
+            var item = new LinkInfo(this, fullPath, line.Type == FtpObjectType.Directory)
             {
                 CreationTime = line.Created == DateTime.MinValue ? CheckDateTime(line.Modified) : line.Created,
                 LastWriteTime = line.Modified == DateTime.MinValue ? CheckDateTime(line.Created) : line.Modified,
@@ -217,7 +404,26 @@ namespace TagBites.IO.Ftp
             return dateTime == DateTime.MinValue ? (DateTime?)null : dateTime;
         }
 
-        public void Dispose() => Client.Dispose();
+        public void Dispose()
+        {
+            Client?.Dispose();
+            AsyncClient?.Dispose();
+        }
+
+        private FtpClient PrepareClient()
+        {
+            if (!Client.IsConnected)
+                Client.AutoConnect();
+
+            return Client;
+        }
+        private async Task<AsyncFtpClient> PrepareClientAsync()
+        {
+            if (!AsyncClient.IsConnected)
+                await AsyncClient.Connect().ConfigureAwait(false); ;
+
+            return AsyncClient;
+        }
 
         private class LinkInfo : IFileLinkInfo
         {
@@ -263,7 +469,7 @@ namespace TagBites.IO.Ftp
                 {
                     if (!Owner.HashCodeNotSupported)
                     {
-                        var hash = Owner.Client.GetHash(FullName);
+                        var hash = Owner.PrepareClient().GetChecksum(FullName);
                         if (hash != null)
                         {
                             var algorithm = GetHashAlgorithm(hash.Algorithm);
