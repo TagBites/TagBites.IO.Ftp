@@ -69,8 +69,6 @@ namespace TagBites.IO.Ftp
         public IFileSystemStructureLinkInfo GetLinkInfo(string fullName) => GetInfo(fullName);
         public async Task<IFileSystemStructureLinkInfo> GetLinkInfoAsync(string fullName) => await GetInfoAsync(fullName).ConfigureAwait(false);
 
-        public string CorrectPath(string path) => path;
-
         public void ReadFile(FileLink file, Stream stream)
         {
             using (_locker.Lock())
