@@ -56,6 +56,9 @@ namespace TagBites.IO.Ftp
             }
         }
 
+        public string Kind => "ftp";
+        public string Name => _connectionConfig.Host;
+
         public bool SupportsIsHiddenMetadata => false;
         public bool SupportsIsReadOnlyMetadata => false;
         public bool SupportsLastWriteTimeMetadata => true;
