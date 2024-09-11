@@ -56,7 +56,7 @@ namespace TagBites.IO.Ftp
             }
         }
 
-        public string Kind => "ftp";
+        public string Kind => KnowFileSystemKind.Ftp;
         public string Name => _connectionConfig.Host;
 
         public bool SupportsIsHiddenMetadata => false;
