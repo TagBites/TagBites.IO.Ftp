@@ -358,12 +358,20 @@ namespace TagBites.IO.Ftp
         {
             using (_locker.Lock())
             {
-                if (!PrepareClient().IsConnected)
-                    PrepareClient().AutoConnect();
+                var client = PrepareClient();
+                if (!client.IsConnected)
+                    client.AutoConnect();
 
                 try
                 {
-                    var item = PrepareClient().GetObjectInfo(fullName, true);
+                    if (fullName == "/")
+                    {
+                        // BUG WORKAROUND: IF file system doesn't support MLST command there is problem with root directory
+                        if (!client.HasFeature(FtpCapability.MLSD))
+                            return GetInfo(fullName, new FtpListItem("/", 0, FtpObjectType.Directory, DateTime.MinValue));
+                    }
+
+                    var item = client.GetObjectInfo(fullName, true);
                     return item != null ? GetInfo(fullName, item) : null;
                 }
                 catch (Exception e)
@@ -378,7 +386,15 @@ namespace TagBites.IO.Ftp
             {
                 try
                 {
-                    var item = await (await PrepareClientAsync().ConfigureAwait(false)).GetObjectInfo(fullName, true).ConfigureAwait(false);
+                    var client = await PrepareClientAsync().ConfigureAwait(false);
+                    if (fullName == "/")
+                    {
+                        // BUG WORKAROUND: IF file system doesn't support MLST command there is problem with root directory
+                        if (!client.HasFeature(FtpCapability.MLSD))
+                            return GetInfo(fullName, new FtpListItem("/", 0, FtpObjectType.Directory, DateTime.MinValue));
+                    }
+
+                    var item = await client.GetObjectInfo(fullName, true).ConfigureAwait(false);
                     return item != null ? GetInfo(fullName, item) : null;
                 }
                 catch (Exception e)
