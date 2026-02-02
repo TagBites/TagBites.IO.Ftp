@@ -48,7 +48,7 @@
   </Choose>
 
   <ItemGroup>
-    <PackageReference Include="FluentFTP" Version="46.0.2" />
+    <PackageReference Include="FluentFTP" Version="53.0.2" />
   </ItemGroup>
 
 </Project>

@@ -367,7 +367,7 @@ namespace TagBites.IO.Ftp
                     if (fullName == "/")
                     {
                         // BUG WORKAROUND: IF file system doesn't support MLST command there is problem with root directory
-                        if (!client.HasFeature(FtpCapability.MLSD))
+                        if (!client.HasFeature(FtpCapability.MLST))
                             return GetInfo(fullName, new FtpListItem("/", 0, FtpObjectType.Directory, DateTime.MinValue));
                     }
 
@@ -390,7 +390,7 @@ namespace TagBites.IO.Ftp
                     if (fullName == "/")
                     {
                         // BUG WORKAROUND: IF file system doesn't support MLST command there is problem with root directory
-                        if (!client.HasFeature(FtpCapability.MLSD))
+                        if (!client.HasFeature(FtpCapability.MLST))
                             return GetInfo(fullName, new FtpListItem("/", 0, FtpObjectType.Directory, DateTime.MinValue));
                     }
 
