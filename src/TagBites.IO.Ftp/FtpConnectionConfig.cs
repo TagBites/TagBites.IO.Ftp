@@ -23,7 +23,7 @@ public class FtpConnectionConfig : FtpConfig
     /// Initializes a new instance of the <see cref="FtpConnectionConfig"/> class.
     /// </summary>
     /// <param name="address">The ftp host address.</param>
-    /// <param name="username">The user name.</param>
+    /// <param name="username">The username.</param>
     /// <param name="password">The password.</param>
     /// <exception cref="ArgumentNullException"></exception>
     public FtpConnectionConfig(string address, string username, string password)
@@ -51,7 +51,7 @@ public class FtpConnectionConfig : FtpConfig
         Port = port;
         Credential = new NetworkCredential(username, password);
 
-        DataConnectionType = FtpDataConnectionType.AutoActive;
+        DataConnectionType = FtpDataConnectionType.AutoPassive;
         EncryptionMode = FtpEncryptionMode.Explicit;
         RetryAttempts = 3;
     }
