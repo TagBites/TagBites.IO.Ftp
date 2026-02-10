@@ -76,34 +76,36 @@ namespace TagBites.IO.Ftp
         {
             using (_locker.Lock())
             {
-                using (var rs = PrepareClient().OpenRead(file.FullName))
+                var client = PrepareClient();
+                using (var rs = client.OpenRead(file.FullName))
                     rs.CopyTo(stream);
 
-                PrepareClient().GetReply();
+                client.GetReply();
             }
         }
         public async Task ReadFileAsync(FileLink file, Stream stream)
         {
             using (await _locker.LockAsync().ConfigureAwait(false))
             {
-                using var rs = await (await PrepareClientAsync().ConfigureAwait(false)).OpenRead(file.FullName).ConfigureAwait(false);
+                var client = await PrepareClientAsync().ConfigureAwait(false);
+
+                using var rs = await client.OpenRead(file.FullName).ConfigureAwait(false);
                 await rs.CopyToAsync(stream).ConfigureAwait(false);
 
-                await (await PrepareClientAsync().ConfigureAwait(false)).GetReply(default); // TODO BJ
+                await client.GetReply();
             }
         }
         public IFileLinkInfo WriteFile(FileLink file, Stream stream, bool overwrite)
         {
             using (_locker.Lock())
             {
-                if (overwrite)
-                    PrepareClient().UploadStream(stream, file.FullName, FtpRemoteExists.Overwrite, true);
-                else
-                {
-                    if (PrepareClient().UploadStream(stream, file.FullName, FtpRemoteExists.Skip, true)! != FtpStatus.Success)
+                var client = PrepareClient();
+                var mode = overwrite ? FtpRemoteExists.Overwrite : FtpRemoteExists.Skip;
+
+                var result = client.UploadStream(stream, file.FullName, mode, true);
+                if (overwrite && result != FtpStatus.Success)
                         throw new IOException("Unable to create a new file. File already exists or an unknown error occur during transfer.");
                 }
-            }
 
             return GetFileInfo(file.FullName);
         }
@@ -111,14 +113,13 @@ namespace TagBites.IO.Ftp
         {
             using (await _locker.LockAsync().ConfigureAwait(false))
             {
-                if (overwrite)
-                    await (await PrepareClientAsync().ConfigureAwait(false)).UploadStream(stream, file.FullName, FtpRemoteExists.Overwrite, true).ConfigureAwait(false);
-                else
-                {
-                    if (await (await PrepareClientAsync().ConfigureAwait(false)).UploadStream(stream, file.FullName, FtpRemoteExists.Skip, true).ConfigureAwait(false) != FtpStatus.Success)
+                var client = await PrepareClientAsync().ConfigureAwait(false);
+                var mode = overwrite ? FtpRemoteExists.Overwrite : FtpRemoteExists.Skip;
+
+                var result = await client.UploadStream(stream, file.FullName, mode, true).ConfigureAwait(false);
+                if (overwrite && result != FtpStatus.Success)
                         throw new IOException("Unable to create a new file. File already exists or an unknown error occur during transfer.");
                 }
-            }
 
             return await GetFileInfoAsync(file.FullName).ConfigureAwait(false);
         }
@@ -131,13 +132,14 @@ namespace TagBites.IO.Ftp
 
             using (_locker.Lock())
             {
-                var stream = PrepareClient().OpenRead(file.FullName);
+                var client = PrepareClient();
+                var stream = client.OpenRead(file.FullName);
 
                 return new NotifyOnCloseStream(stream, () =>
                 {
                     try
                     {
-                        PrepareClient().GetReply();
+                        client.GetReply();
                     }
                     finally
                     {
@@ -153,7 +155,8 @@ namespace TagBites.IO.Ftp
 
             using (await _locker.LockAsync().ConfigureAwait(false))
             {
-                var stream = await (await PrepareClientAsync().ConfigureAwait(false)).OpenRead(file.FullName).ConfigureAwait(false);
+                var client = await PrepareClientAsync().ConfigureAwait(false);
+                var stream = await client.OpenRead(file.FullName).ConfigureAwait(false);
 
                 return new NotifyOnCloseStream(stream, () =>
                 {
@@ -173,11 +176,12 @@ namespace TagBites.IO.Ftp
         {
             using (_locker.Lock())
             {
+                var client = PrepareClient();
                 if (overwrite)
-                    PrepareClient().MoveFile(source.FullName, destination.FullName);
+                    client.MoveFile(source.FullName, destination.FullName);
                 else
                 {
-                    if (!PrepareClient().MoveFile(source.FullName, destination.FullName, FtpRemoteExists.Skip))
+                    if (!client.MoveFile(source.FullName, destination.FullName, FtpRemoteExists.Skip))
                         throw new IOException("Unable to move a new file. File already exists or an unknown error occur during transfer.");
                 }
             }
@@ -188,11 +192,13 @@ namespace TagBites.IO.Ftp
         {
             using (await _locker.LockAsync().ConfigureAwait(false))
             {
+                var client = await PrepareClientAsync().ConfigureAwait(false);
+
                 if (overwrite)
-                    await (await PrepareClientAsync().ConfigureAwait(false)).MoveFile(source.FullName, destination.FullName).ConfigureAwait(false);
+                    await client.MoveFile(source.FullName, destination.FullName).ConfigureAwait(false);
                 else
                 {
-                    if (!await (await PrepareClientAsync().ConfigureAwait(false)).MoveFile(source.FullName, destination.FullName, FtpRemoteExists.Skip).ConfigureAwait(false))
+                    if (!await client.MoveFile(source.FullName, destination.FullName, FtpRemoteExists.Skip).ConfigureAwait(false))
                         throw new IOException("Unable to move a new file. File already exists or an unknown error occur during transfer.");
                 }
             }
@@ -204,14 +210,16 @@ namespace TagBites.IO.Ftp
         {
             using (_locker.Lock())
             {
-                PrepareClient().DeleteFile(file.FullName);
+                var client = PrepareClient();
+                client.DeleteFile(file.FullName);
             }
         }
         public async Task DeleteFileAsync(FileLink file)
         {
             using (await _locker.LockAsync().ConfigureAwait(false))
             {
-                await (await PrepareClientAsync().ConfigureAwait(false)).DeleteFile(file.FullName).ConfigureAwait(false);
+                var client = await PrepareClientAsync().ConfigureAwait(false);
+                await client.DeleteFile(file.FullName).ConfigureAwait(false);
             }
         }
 
@@ -219,7 +227,8 @@ namespace TagBites.IO.Ftp
         {
             using (_locker.Lock())
             {
-                PrepareClient().CreateDirectory(directory.FullName);
+                var client = PrepareClient();
+                client.CreateDirectory(directory.FullName);
             }
 
             return GetDirectoryInfo(directory.FullName);
@@ -228,7 +237,8 @@ namespace TagBites.IO.Ftp
         {
             using (await _locker.LockAsync().ConfigureAwait(false))
             {
-                await (await PrepareClientAsync().ConfigureAwait(false)).CreateDirectory(directory.FullName).ConfigureAwait(false);
+                var client = await PrepareClientAsync().ConfigureAwait(false);
+                await client.CreateDirectory(directory.FullName).ConfigureAwait(false);
             }
 
             return await GetDirectoryInfoAsync(directory.FullName).ConfigureAwait(false);
@@ -238,7 +248,8 @@ namespace TagBites.IO.Ftp
         {
             using (_locker.Lock())
             {
-                PrepareClient().MoveDirectory(source.FullName, destination.FullName);
+                var client = PrepareClient();
+                client.MoveDirectory(source.FullName, destination.FullName);
             }
 
             return GetDirectoryInfo(destination.FullName);
@@ -247,7 +258,8 @@ namespace TagBites.IO.Ftp
         {
             using (await _locker.LockAsync().ConfigureAwait(false))
             {
-                await (await PrepareClientAsync().ConfigureAwait(false)).MoveDirectory(source.FullName, destination.FullName).ConfigureAwait(false);
+                var client = await PrepareClientAsync().ConfigureAwait(false);
+                await client.MoveDirectory(source.FullName, destination.FullName).ConfigureAwait(false);
             }
 
             return await GetDirectoryInfoAsync(destination.FullName).ConfigureAwait(false);
@@ -257,20 +269,22 @@ namespace TagBites.IO.Ftp
         {
             using (_locker.Lock())
             {
-                if (!recursive && PrepareClient().GetListing(directory.FullName, FtpListOption.SizeModify).Length > 0)
+                var client = PrepareClient();
+                if (!recursive && client.GetListing(directory.FullName, FtpListOption.SizeModify).Length > 0)
                     throw new IOException($"The directory is not empty: {directory.FullName}");
 
-                PrepareClient().DeleteDirectory(directory.FullName);
+                client.DeleteDirectory(directory.FullName);
             }
         }
         public async Task DeleteDirectoryAsync(DirectoryLink directory, bool recursive)
         {
             using (await _locker.LockAsync().ConfigureAwait(false))
             {
-                if (!recursive && (await (await PrepareClientAsync().ConfigureAwait(false)).GetListing(directory.FullName, FtpListOption.SizeModify).ConfigureAwait(false)).Length > 0)
+                var client = await PrepareClientAsync().ConfigureAwait(false);
+                if (!recursive && (await client.GetListing(directory.FullName, FtpListOption.SizeModify).ConfigureAwait(false)).Length > 0)
                     throw new IOException($"The directory is not empty: {directory.FullName}");
 
-                await (await PrepareClientAsync().ConfigureAwait(false)).DeleteDirectory(directory.FullName).ConfigureAwait(false);
+                await client.DeleteDirectory(directory.FullName).ConfigureAwait(false);
             }
         }
 
@@ -280,7 +294,9 @@ namespace TagBites.IO.Ftp
 
             using (_locker.Lock())
             {
-                foreach (var line in PrepareClient().GetListing(directory.FullName, FtpListOption.SizeModify))
+                var client = PrepareClient();
+                var lines = client.GetListing(directory.FullName, FtpListOption.SizeModify);
+                foreach (var line in lines)
                 {
                     if (line.Type == FtpObjectType.Link)// || IgnoredFiles.Contains(line.Name))
                         continue;
@@ -298,7 +314,9 @@ namespace TagBites.IO.Ftp
 
             using (await _locker.LockAsync().ConfigureAwait(false))
             {
-                foreach (var line in await (await PrepareClientAsync().ConfigureAwait(false)).GetListing(directory.FullName, FtpListOption.SizeModify).ConfigureAwait(false))
+                var client = await PrepareClientAsync().ConfigureAwait(false);
+                var lines = await client.GetListing(directory.FullName, FtpListOption.SizeModify).ConfigureAwait(false);
+                foreach (var line in lines)
                 {
                     if (line.Type == FtpObjectType.Link)// || IgnoredFiles.Contains(line.Name))
                         continue;
@@ -315,8 +333,9 @@ namespace TagBites.IO.Ftp
         {
             using (_locker.Lock())
             {
+                var client = PrepareClient();
                 if (metadata.LastWriteTime.HasValue)
-                    PrepareClient().SetModifiedTime(link.FullName, metadata.LastWriteTime.Value);
+                    client.SetModifiedTime(link.FullName, metadata.LastWriteTime.Value);
             }
 
             return GetInfo(link.FullName);
@@ -325,8 +344,9 @@ namespace TagBites.IO.Ftp
         {
             using (await _locker.LockAsync().ConfigureAwait(false))
             {
+                var client = await PrepareClientAsync().ConfigureAwait(false);
                 if (metadata.LastWriteTime.HasValue)
-                    await (await PrepareClientAsync().ConfigureAwait(false)).SetModifiedTime(link.FullName, metadata.LastWriteTime.Value).ConfigureAwait(false);
+                    await client.SetModifiedTime(link.FullName, metadata.LastWriteTime.Value).ConfigureAwait(false);
             }
             return await GetInfoAsync(link.FullName).ConfigureAwait(false);
         }
