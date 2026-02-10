@@ -294,8 +294,13 @@ namespace TagBites.IO.Ftp
 
             using (_locker.Lock())
             {
+                options.RecursiveHandled = true;
+                var ftpOptions = FtpListOption.SizeModify;
+                if (options.Recursive)
+                    ftpOptions |= FtpListOption.Recursive;
+
                 var client = PrepareClient();
-                var lines = client.GetListing(directory.FullName, FtpListOption.SizeModify);
+                var lines = client.GetListing(directory.FullName, ftpOptions);
                 foreach (var line in lines)
                 {
                     if (line.Type == FtpObjectType.Link)// || IgnoredFiles.Contains(line.Name))
@@ -314,8 +319,13 @@ namespace TagBites.IO.Ftp
 
             using (await _locker.LockAsync().ConfigureAwait(false))
             {
+                options.RecursiveHandled = true;
+                var ftpOptions = FtpListOption.SizeModify;
+                if (options.Recursive)
+                    ftpOptions |= FtpListOption.Recursive;
+
                 var client = await PrepareClientAsync().ConfigureAwait(false);
-                var lines = await client.GetListing(directory.FullName, FtpListOption.SizeModify).ConfigureAwait(false);
+                var lines = await client.GetListing(directory.FullName, ftpOptions).ConfigureAwait(false);
                 foreach (var line in lines)
                 {
                     if (line.Type == FtpObjectType.Link)// || IgnoredFiles.Contains(line.Name))
