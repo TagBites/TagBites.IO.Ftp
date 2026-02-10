@@ -32,9 +32,7 @@ namespace TagBites.IO.Ftp
                 if (_client == null)
                 {
                     _client = new FtpClient(_connectionConfig.Host, _connectionConfig.Credential, _connectionConfig.Port, _connectionConfig);
-                    if (_connectionConfig.Encoding != null)
-                        _client.Encoding = _connectionConfig.Encoding;
-                    _client.ValidateCertificate += (control, args) => args.Accept = true;
+                    ConfigureDefaultConfig(_client);
                 }
 
                 return _client;
@@ -47,9 +45,7 @@ namespace TagBites.IO.Ftp
                 if (_asyncClient == null)
                 {
                     _asyncClient = new AsyncFtpClient(_connectionConfig.Host, _connectionConfig.Credential, _connectionConfig.Port, _connectionConfig);
-                    if (_connectionConfig.Encoding != null)
-                        _client.Encoding = _connectionConfig.Encoding;
-                    _asyncClient.ValidateCertificate += (control, args) => args.Accept = true;
+                    ConfigureDefaultConfig(_asyncClient);
                 }
 
                 return _asyncClient;
@@ -389,8 +385,6 @@ namespace TagBites.IO.Ftp
             using (_locker.Lock())
             {
                 var client = PrepareClient();
-                if (!client.IsConnected)
-                    client.AutoConnect();
 
                 try
                 {
@@ -451,12 +445,6 @@ namespace TagBites.IO.Ftp
             return dateTime == DateTime.MinValue ? (DateTime?)null : dateTime;
         }
 
-        public void Dispose()
-        {
-            Client?.Dispose();
-            AsyncClient?.Dispose();
-        }
-
         private FtpClient PrepareClient()
         {
             if (!Client.IsConnected)
@@ -467,9 +455,23 @@ namespace TagBites.IO.Ftp
         private async Task<AsyncFtpClient> PrepareClientAsync()
         {
             if (!AsyncClient.IsConnected)
-                await AsyncClient.Connect().ConfigureAwait(false); ;
+                await AsyncClient.AutoConnect().ConfigureAwait(false);
+
 
             return AsyncClient;
+        }
+        private void ConfigureDefaultConfig(BaseFtpClient client)
+        {
+            if (_connectionConfig.Encoding != null)
+                client.Encoding = _connectionConfig.Encoding;
+
+            client.ValidateCertificate += (control, args) => args.Accept = true;
+        }
+
+        public void Dispose()
+        {
+            Client?.Dispose();
+            AsyncClient?.Dispose();
         }
 
         private class LinkInfo : IFileLinkInfo
