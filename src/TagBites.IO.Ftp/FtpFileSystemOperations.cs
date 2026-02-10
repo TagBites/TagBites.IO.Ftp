@@ -95,7 +95,7 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
             var mode = overwrite ? FtpRemoteExists.Overwrite : FtpRemoteExists.Skip;
 
             var result = client.UploadStream(stream, file.FullName, mode, true);
-            if (overwrite && result != FtpStatus.Success)
+            if (!overwrite && result != FtpStatus.Success)
                 throw new IOException("Unable to create a new file. File already exists or an unknown error occur during transfer.");
         }
 
@@ -109,7 +109,7 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
             var mode = overwrite ? FtpRemoteExists.Overwrite : FtpRemoteExists.Skip;
 
             var result = await client.UploadStream(stream, file.FullName, mode, true).ConfigureAwait(false);
-            if (overwrite && result != FtpStatus.Success)
+            if (!overwrite && result != FtpStatus.Success)
                 throw new IOException("Unable to create a new file. File already exists or an unknown error occur during transfer.");
         }
 
