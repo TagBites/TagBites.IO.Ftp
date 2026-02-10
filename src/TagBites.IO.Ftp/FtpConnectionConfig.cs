@@ -18,7 +18,6 @@ public class FtpConnectionConfig : FtpConfig
     /// Gets or sets the text encoding being used when talking with the server.
     /// </summary>
     public Encoding? Encoding { get; set; }
-    private FtpDataConnectionType ConnectionType { get; set; } = FtpDataConnectionType.AutoPassive;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="FtpConnectionConfig"/> class.
@@ -33,8 +32,12 @@ public class FtpConnectionConfig : FtpConfig
             throw new ArgumentNullException(nameof(address));
 
         address = address.Replace("\\", "/");
-        if (!address.StartsWith("ftp://", StringComparison.CurrentCultureIgnoreCase))
+        if (!address.StartsWith("ftp://", StringComparison.CurrentCultureIgnoreCase) &&
+            !address.StartsWith("ftps://", StringComparison.CurrentCultureIgnoreCase))
+        {
             address = "ftp://" + address;
+        }
+
 
         var url = new Uri(address);
         var host = url.Host;
