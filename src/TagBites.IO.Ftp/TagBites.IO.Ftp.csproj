@@ -6,7 +6,7 @@
     <Product>TagBites.IO.Ftp</Product>
     <Title>TagBites.IO.Ftp</Title>
 
-    <Description></Description>
+    <Description>FTP/FTPS file system support for TagBites.IO, built on FluentFTP. Browse, read, write and sync a remote FTP server through the same FileSystem API used for local disk and other storages.</Description>
     <PackageTags>file;files;system;filesystem;sync;.net;C#;ftp</PackageTags>
 
     <PackageProjectUrl>https://www.tagbites.com/io</PackageProjectUrl>
