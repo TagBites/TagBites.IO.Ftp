@@ -533,15 +533,15 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
         }
         private static FileHashAlgorithm GetHashAlgorithm(FtpHashAlgorithm algorithm)
         {
-            switch (algorithm)
+            return algorithm switch
             {
-                case FtpHashAlgorithm.SHA1: return FileHashAlgorithm.Sha1;
-                case FtpHashAlgorithm.SHA256: return FileHashAlgorithm.Sha256;
-                case FtpHashAlgorithm.SHA512: return FileHashAlgorithm.Sha512;
-                case FtpHashAlgorithm.MD5: return FileHashAlgorithm.Md5;
-                case FtpHashAlgorithm.CRC: return FileHashAlgorithm.Crc;
-                default: return FileHashAlgorithm.None;
-            }
+                FtpHashAlgorithm.SHA1 => FileHashAlgorithm.Sha1,
+                FtpHashAlgorithm.SHA256 => FileHashAlgorithm.Sha256,
+                FtpHashAlgorithm.SHA512 => FileHashAlgorithm.Sha512,
+                FtpHashAlgorithm.MD5 => FileHashAlgorithm.Md5,
+                FtpHashAlgorithm.CRC => FileHashAlgorithm.Crc,
+                _ => FileHashAlgorithm.None
+            };
         }
     }
 }
