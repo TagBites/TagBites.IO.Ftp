@@ -17,8 +17,8 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
     private readonly FtpConnectionConfig _connectionConfig = connectionConfig ?? throw new ArgumentNullException(nameof(connectionConfig));
     private readonly AsyncLock _locker = new();
 
-    private FtpClient _client;
-    private AsyncFtpClient _asyncClient;
+    private FtpClient? _client;
+    private AsyncFtpClient? _asyncClient;
 
     private bool HashCodeNotSupported { get; set; }
 
@@ -57,8 +57,8 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
     public bool SupportsLastWriteTimeMetadata => true;
 
 
-    public IFileSystemStructureLinkInfo GetLinkInfo(string fullName) => GetInfo(fullName);
-    public async Task<IFileSystemStructureLinkInfo> GetLinkInfoAsync(string fullName) => await GetInfoAsync(fullName).ConfigureAwait(false);
+    public IFileSystemStructureLinkInfo? GetLinkInfo(string fullName) => GetInfo(fullName);
+    public async Task<IFileSystemStructureLinkInfo?> GetLinkInfoAsync(string fullName) => await GetInfoAsync(fullName).ConfigureAwait(false);
 
     public void ReadFile(FileLink file, Stream stream)
     {
@@ -95,7 +95,8 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
                 throw new IOException("Unable to create a new file. File already exists or an unknown error occur during transfer.");
         }
 
-        return GetFileInfo(file.FullName);
+        // The file was just written, so it necessarily exists.
+        return GetFileInfo(file.FullName)!;
     }
     public async Task<IFileLinkInfo> WriteFileAsync(FileLink file, Stream stream, bool overwrite)
     {
@@ -109,7 +110,8 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
                 throw new IOException("Unable to create a new file. File already exists or an unknown error occur during transfer.");
         }
 
-        return await GetFileInfoAsync(file.FullName).ConfigureAwait(false);
+        // The file was just written, so it necessarily exists.
+        return (await GetFileInfoAsync(file.FullName).ConfigureAwait(false))!;
     }
 
     public FileAccess GetSupportedDirectAccess(FileLink file) => FileAccess.Read;
@@ -174,7 +176,8 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
             }
         }
 
-        return GetFileInfo(destination.FullName);
+        // The file was just moved here, so it necessarily exists.
+        return GetFileInfo(destination.FullName)!;
     }
     public async Task<IFileLinkInfo> MoveFileAsync(FileLink source, FileLink destination, bool overwrite)
     {
@@ -191,7 +194,8 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
             }
         }
 
-        return await GetFileInfoAsync(destination.FullName);
+        // The file was just moved here, so it necessarily exists.
+        return (await GetFileInfoAsync(destination.FullName).ConfigureAwait(false))!;
     }
 
     public void DeleteFile(FileLink file)
@@ -219,7 +223,8 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
             client.CreateDirectory(directory.FullName);
         }
 
-        return GetDirectoryInfo(directory.FullName);
+        // The directory was just created, so it necessarily exists.
+        return GetDirectoryInfo(directory.FullName)!;
     }
     public async Task<IFileSystemStructureLinkInfo> CreateDirectoryAsync(DirectoryLink directory)
     {
@@ -229,7 +234,8 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
             await client.CreateDirectory(directory.FullName).ConfigureAwait(false);
         }
 
-        return await GetDirectoryInfoAsync(directory.FullName).ConfigureAwait(false);
+        // The directory was just created, so it necessarily exists.
+        return (await GetDirectoryInfoAsync(directory.FullName).ConfigureAwait(false))!;
     }
 
     public IFileSystemStructureLinkInfo MoveDirectory(DirectoryLink source, DirectoryLink destination)
@@ -240,7 +246,8 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
             client.MoveDirectory(source.FullName, destination.FullName);
         }
 
-        return GetDirectoryInfo(destination.FullName);
+        // The directory was just moved here, so it necessarily exists.
+        return GetDirectoryInfo(destination.FullName)!;
     }
     public async Task<IFileSystemStructureLinkInfo> MoveDirectoryAsync(DirectoryLink source, DirectoryLink destination)
     {
@@ -250,7 +257,8 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
             await client.MoveDirectory(source.FullName, destination.FullName).ConfigureAwait(false);
         }
 
-        return await GetDirectoryInfoAsync(destination.FullName).ConfigureAwait(false);
+        // The directory was just moved here, so it necessarily exists.
+        return (await GetDirectoryInfoAsync(destination.FullName).ConfigureAwait(false))!;
     }
 
     public void DeleteDirectory(DirectoryLink directory, bool recursive)
@@ -336,7 +344,8 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
                 client.SetModifiedTime(link.FullName, metadata.LastWriteTime.Value);
         }
 
-        return GetInfo(link.FullName);
+        // The link being updated necessarily exists.
+        return GetInfo(link.FullName)!;
     }
     public async Task<IFileSystemStructureLinkInfo> UpdateMetadataAsync(FileSystemStructureLink link, IFileSystemLinkMetadata metadata)
     {
@@ -346,33 +355,34 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
             if (metadata.LastWriteTime.HasValue)
                 await client.SetModifiedTime(link.FullName, metadata.LastWriteTime.Value).ConfigureAwait(false);
         }
-        return await GetInfoAsync(link.FullName).ConfigureAwait(false);
+        // The link being updated necessarily exists.
+        return (await GetInfoAsync(link.FullName).ConfigureAwait(false))!;
     }
 
     public bool HasReadAccess(FileSystemStructureLink link) => (link.Info as LinkInfo)?.CanRead != false;
     public bool HasWriteAccess(FileSystemStructureLink link) => (link.Info as LinkInfo)?.CanWrite != false;
 
-    private LinkInfo GetFileInfo(string fullName)
+    private LinkInfo? GetFileInfo(string fullName)
     {
         var info = GetInfo(fullName);
         return info is { IsDirectory: false } ? info : null;
     }
-    private async Task<LinkInfo> GetFileInfoAsync(string fullName)
+    private async Task<LinkInfo?> GetFileInfoAsync(string fullName)
     {
         var info = await GetInfoAsync(fullName).ConfigureAwait(false);
         return info is { IsDirectory: false } ? info : null;
     }
-    private LinkInfo GetDirectoryInfo(string fullName)
+    private LinkInfo? GetDirectoryInfo(string fullName)
     {
         var info = GetInfo(fullName);
         return info is { IsDirectory: true } ? info : null;
     }
-    private async Task<LinkInfo> GetDirectoryInfoAsync(string fullName)
+    private async Task<LinkInfo?> GetDirectoryInfoAsync(string fullName)
     {
         var info = await GetInfoAsync(fullName).ConfigureAwait(false);
         return info is { IsDirectory: true } ? info : null;
     }
-    private LinkInfo GetInfo(string fullName)
+    private LinkInfo? GetInfo(string fullName)
     {
         using (_locker.Lock())
         {
@@ -396,7 +406,7 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
             }
         }
     }
-    private async Task<LinkInfo> GetInfoAsync(string fullName)
+    private async Task<LinkInfo?> GetInfoAsync(string fullName)
     {
         using (await _locker.LockAsync().ConfigureAwait(false))
         {

@@ -17,7 +17,7 @@ public static class FtpFileSystem
     /// <param name="encoding">The encoding applied to the contents of files.</param>
     /// <param name="connectionType">The Ftp Data connection type.</param>
     /// <returns>A Ftp file system contains the procedures that are used to perform file and directory operations.</returns>
-    public static FileSystem Create(string address, string username, string password, Encoding encoding = null, FtpDataConnectionType connectionType = FtpDataConnectionType.AutoPassive)
+    public static FileSystem Create(string address, string username, string password, Encoding? encoding = null, FtpDataConnectionType connectionType = FtpDataConnectionType.AutoPassive)
     {
         var connectionConfig = new FtpConnectionConfig(address, username, password)
         {
