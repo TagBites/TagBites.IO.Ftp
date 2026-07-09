@@ -1,10 +1,6 @@
-﻿using FluentFTP;
+using FluentFTP;
 using FluentFTP.Client.BaseClient;
 using FluentFTP.Exceptions;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading.Tasks;
 using TagBites.IO.Operations;
 using TagBites.IO.Streams;
 using TagBites.Utils;

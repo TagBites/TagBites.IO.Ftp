@@ -38,6 +38,18 @@
     <DefaultItemExcludes>$(DefaultItemExcludes);*.csproj.DotSettings</DefaultItemExcludes>
   </PropertyGroup>
 
+  <!-- Usings -->
+  <ItemGroup>
+    <Using Include="System" />
+    <Using Include="System.Collections" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.IO" />
+    <Using Include="System.Linq" />
+    <Using Include="System.Threading" />
+    <Using Include="System.Threading.Tasks" />
+    <Using Include="JetBrains.Annotations" />
+  </ItemGroup>
+
   <!-- Includes -->
   <Import Condition="exists('Version.props')" Project="Version.props" />
   <Import Condition="exists('Licensing.props')" Project="Licensing.props" />

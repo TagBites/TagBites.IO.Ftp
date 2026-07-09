@@ -1,9 +1,8 @@
 ﻿#nullable enable
 
-using FluentFTP;
-using System;
 using System.Net;
 using System.Text;
+using FluentFTP;
 
 namespace TagBites.IO.Ftp;
 /// <summary>

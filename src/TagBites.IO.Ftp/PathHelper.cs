@@ -1,6 +1,4 @@
-﻿using System.IO;
-
-namespace TagBites.IO.Ftp;
+﻿namespace TagBites.IO.Ftp;
 
 internal static class PathHelper
 {
