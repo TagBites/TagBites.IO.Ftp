@@ -42,13 +42,13 @@
     </When>
     <Otherwise>
       <ItemGroup>
-        <PackageReference Include="TagBites.IO" Version="1.3.11" />
+        <PackageReference Include="TagBites.IO" Version="1.3.13" />
       </ItemGroup>
     </Otherwise>
   </Choose>
 
   <ItemGroup>
-    <PackageReference Include="FluentFTP" Version="53.0.2" />
+    <PackageReference Include="FluentFTP" Version="54.2.0" />
   </ItemGroup>
 
 </Project>
