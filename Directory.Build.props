@@ -29,7 +29,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
-  <!-- Globalziation -->
+  <!-- Globalization -->
   <PropertyGroup>
     <NeutralLanguage>en-US</NeutralLanguage>
   </PropertyGroup>
