@@ -1,53 +1,27 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
-  <!-- Package info -->
-  <PropertyGroup>
-    <PackageId>TagBites.IO.Ftp</PackageId>
-    <Product>TagBites.IO.Ftp</Product>
-    <Title>TagBites.IO.Ftp</Title>
-
-    <Description>FTP/FTPS file system support for TagBites.IO, built on FluentFTP. Browse, read, write and sync a remote FTP server through the same FileSystem API used for local disk and other storages.</Description>
-    <PackageTags>file;files;system;filesystem;sync;.net;C#;ftp</PackageTags>
-
-    <PackageProjectUrl>https://www.tagbites.com/io</PackageProjectUrl>
-    <PackageIconUrl>https://www.tagbites.com/io/icon.png</PackageIconUrl>
-
-    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-
-    <RepositoryType>git</RepositoryType>
-    <RepositoryUrl>https://github.com/TagBites/TagBites.IO.Ftp.git</RepositoryUrl>
-  </PropertyGroup>
+<Project Sdk="Microsoft.NET.Sdk">
 
   <!-- Targets -->
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>TagBites.IO.Ftp</RootNamespace>
   </PropertyGroup>
 
   <!-- Build -->
   <PropertyGroup>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
+  <!-- Package info -->
   <PropertyGroup>
-    <RootNamespace>TagBites.IO.Ftp</RootNamespace>
+    <Description>FTP/FTPS file system support for TagBites.IO, built on FluentFTP. Browse, read, write and sync a remote FTP server through the same FileSystem API used for local disk and other storages.</Description>
+    <PackageTags>file;files;filesystem;storage;sync;ftp;ftps</PackageTags>
+    <PackageProjectUrl>https://www.tagbites.com/io</PackageProjectUrl>
   </PropertyGroup>
 
   <!-- References -->
-  <Choose>
-    <When Condition="'$(SolutionName)' == 'TagBites.IO-dev'">
-      <ItemGroup>
-        <ProjectReference Include="$(SolutionDir)\src\TagBites.IO\TagBites.IO.csproj" />
-      </ItemGroup>
-    </When>
-    <Otherwise>
-      <ItemGroup>
-        <PackageReference Include="TagBites.IO" Version="1.3.13" />
-      </ItemGroup>
-    </Otherwise>
-  </Choose>
-
   <ItemGroup>
+    <ProjectReference Include="$(SolutionDir)\src\TagBites.IO\TagBites.IO.csproj" Condition="$(SolutionName.EndsWith('-dev'))" />
+    <PackageReference Include="TagBites.IO" Version="1.3.13" Condition="!$(SolutionName.EndsWith('-dev'))" />
     <PackageReference Include="FluentFTP" Version="54.2.0" />
   </ItemGroup>
 
