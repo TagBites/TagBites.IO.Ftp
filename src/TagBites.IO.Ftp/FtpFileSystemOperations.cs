@@ -11,7 +11,7 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
     IFileSystemWriteOperations,
     IFileSystemAsyncWriteOperations,
     IFileSystemPermissionsOperations,
-    IFileSystemMetadataSupport,
+    IFileSystemFeatureSupport,
     IDisposable
 {
     private readonly FtpConnectionConfig _connectionConfig = connectionConfig ?? throw new ArgumentNullException(nameof(connectionConfig));
@@ -52,9 +52,7 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
     public string Kind => KnowFileSystemKind.Ftp;
     public string Name => _connectionConfig.Host;
 
-    public bool SupportsIsHiddenMetadata => false;
-    public bool SupportsIsReadOnlyMetadata => false;
-    public bool SupportsLastWriteTimeMetadata => true;
+    public FileSystemOperationsFeatures Features => FileSystemOperationsFeatures.LastWriteTimeAttributes | FileSystemOperationsFeatures.ConcurrentWriteOperations | FileSystemOperationsFeatures.HierarchicalDirectories;
 
 
     public IFileSystemStructureLinkInfo? GetLinkInfo(string fullName) => GetInfo(fullName);
