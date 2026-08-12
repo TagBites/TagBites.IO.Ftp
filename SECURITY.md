@@ -25,7 +25,7 @@ This package is a provider for [TagBites.IO](https://github.com/TagBites/TagBite
 
 TLS is enabled by default: `FtpConnectionConfig` sets `EncryptionMode = FtpEncryptionMode.Explicit` for every address, including one written as `ftp://`.
 
-**The server certificate is accepted without verification.** `FtpFileSystemOperations.ConfigureDefaultConfig` installs `client.ValidateCertificate += (_, args) => args.Accept = true;`, so an FTPS connection is encrypted but not authenticated and offers no protection against an active man-in-the-middle. Treat FTPS through this provider as protection against passive eavesdropping only, and prefer a network path you already trust.
+**The server certificate is accepted without verification.** `FtpFileSystemOperations.ConfigureDefaultConfig` installs `client.ValidateCertificate += (_, args) => args.Accept = true;`, so an FTPS connection is encrypted but not authenticated and offers no protection against an active man-in-the-middle. Treat FTPS through this provider as protection against passive eavesdropping only, and prefer a network path that is already trusted.
 
 ### Credentials
 
