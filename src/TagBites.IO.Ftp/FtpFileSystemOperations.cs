@@ -4,6 +4,7 @@ using FluentFTP.Exceptions;
 using TagBites.IO.Operations;
 using TagBites.IO.Streams;
 using TagBites.Utils;
+using PathUtils = TagBites.IO.Ftp.Utils.PathUtils;
 
 namespace TagBites.IO.Ftp;
 
@@ -93,7 +94,6 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
                 throw new IOException("Unable to create a new file. File already exists or an unknown error occur during transfer.");
         }
 
-        // The file was just written, so it necessarily exists.
         return GetFileInfo(file.FullName)!;
     }
     public async Task<IFileLinkInfo> WriteFileAsync(FileLink file, Stream stream, bool overwrite)
@@ -108,7 +108,6 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
                 throw new IOException("Unable to create a new file. File already exists or an unknown error occur during transfer.");
         }
 
-        // The file was just written, so it necessarily exists.
         return (await GetFileInfoAsync(file.FullName).ConfigureAwait(false))!;
     }
 
@@ -174,7 +173,6 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
             }
         }
 
-        // The file was just moved here, so it necessarily exists.
         return GetFileInfo(destination.FullName)!;
     }
     public async Task<IFileLinkInfo> MoveFileAsync(FileLink source, FileLink destination, bool overwrite)
@@ -192,7 +190,6 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
             }
         }
 
-        // The file was just moved here, so it necessarily exists.
         return (await GetFileInfoAsync(destination.FullName).ConfigureAwait(false))!;
     }
 
@@ -221,7 +218,6 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
             client.CreateDirectory(directory.FullName);
         }
 
-        // The directory was just created, so it necessarily exists.
         return GetDirectoryInfo(directory.FullName)!;
     }
     public async Task<IFileSystemStructureLinkInfo> CreateDirectoryAsync(DirectoryLink directory)
@@ -232,7 +228,6 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
             await client.CreateDirectory(directory.FullName).ConfigureAwait(false);
         }
 
-        // The directory was just created, so it necessarily exists.
         return (await GetDirectoryInfoAsync(directory.FullName).ConfigureAwait(false))!;
     }
 
@@ -244,7 +239,6 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
             client.MoveDirectory(source.FullName, destination.FullName);
         }
 
-        // The directory was just moved here, so it necessarily exists.
         return GetDirectoryInfo(destination.FullName)!;
     }
     public async Task<IFileSystemStructureLinkInfo> MoveDirectoryAsync(DirectoryLink source, DirectoryLink destination)
@@ -255,7 +249,6 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
             await client.MoveDirectory(source.FullName, destination.FullName).ConfigureAwait(false);
         }
 
-        // The directory was just moved here, so it necessarily exists.
         return (await GetDirectoryInfoAsync(destination.FullName).ConfigureAwait(false))!;
     }
 
@@ -300,7 +293,7 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
                 if (line.Type == FtpObjectType.Link)
                     continue;
 
-                var item = GetInfo(PathHelper.Combine(directory.FullName, line.Name), line);
+                var item = GetInfo(PathUtils.Combine(directory.FullName, line.Name), line);
                 items.Add(item);
             }
         }
@@ -325,7 +318,7 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
                 if (line.Type == FtpObjectType.Link)
                     continue;
 
-                var item = GetInfo(PathHelper.Combine(directory.FullName, line.Name), line);
+                var item = GetInfo(PathUtils.Combine(directory.FullName, line.Name), line);
                 items.Add(item);
             }
         }
@@ -342,7 +335,6 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
                 client.SetModifiedTime(link.FullName, metadata.LastWriteTime.Value);
         }
 
-        // The link being updated necessarily exists.
         return GetInfo(link.FullName)!;
     }
     public async Task<IFileSystemStructureLinkInfo> UpdateMetadataAsync(FileSystemStructureLink link, IFileSystemLinkMetadata metadata)
@@ -353,7 +345,7 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
             if (metadata.LastWriteTime.HasValue)
                 await client.SetModifiedTime(link.FullName, metadata.LastWriteTime.Value).ConfigureAwait(false);
         }
-        // The link being updated necessarily exists.
+
         return (await GetInfoAsync(link.FullName).ConfigureAwait(false))!;
     }
 
@@ -440,7 +432,7 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
 
         return item;
     }
-    private DateTime? CheckDateTime(DateTime dateTime) => dateTime == DateTime.MinValue ? null : dateTime;
+    private static DateTime? CheckDateTime(DateTime dateTime) => dateTime == DateTime.MinValue ? null : dateTime;
 
     private FtpClient PrepareClient()
     {
@@ -462,7 +454,7 @@ internal class FtpFileSystemOperations(FtpConnectionConfig connectionConfig) :
         if (_connectionConfig.Encoding != null)
             client.Encoding = _connectionConfig.Encoding;
 
-        client.ValidateCertificate += (control, args) => args.Accept = true;
+        client.ValidateCertificate += (_, args) => args.Accept = true;
     }
 
     public void Dispose()

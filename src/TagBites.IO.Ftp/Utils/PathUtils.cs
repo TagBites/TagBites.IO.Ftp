@@ -1,6 +1,6 @@
-﻿namespace TagBites.IO.Ftp;
+namespace TagBites.IO.Ftp.Utils;
 
-internal static class PathHelper
+internal static class PathUtils
 {
     public static string Combine(string path1, string path2)
     {

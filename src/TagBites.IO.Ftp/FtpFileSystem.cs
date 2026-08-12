@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using FluentFTP;
 
 namespace TagBites.IO.Ftp;
@@ -12,7 +12,7 @@ public static class FtpFileSystem
     /// Creates a Ftp file system.
     /// </summary>
     /// <param name="address">The ftp host address.</param>
-    /// <param name="username">The user name.</param>
+    /// <param name="username">The username.</param>
     /// <param name="password">The password.</param>
     /// <param name="encoding">The encoding applied to the contents of files.</param>
     /// <param name="connectionType">The Ftp Data connection type.</param>
