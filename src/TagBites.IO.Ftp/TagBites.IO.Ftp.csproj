@@ -16,6 +16,7 @@
     <Description>FTP/FTPS file system support for TagBites.IO, built on FluentFTP. Browse, read, write and sync a remote FTP server through the same FileSystem API used for local disk and other storages.</Description>
     <PackageTags>file;files;filesystem;storage;sync;ftp;ftps</PackageTags>
     <PackageProjectUrl>https://www.tagbites.com/io</PackageProjectUrl>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
   </PropertyGroup>
 
   <!-- References -->
